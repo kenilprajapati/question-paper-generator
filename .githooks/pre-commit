@@ -1,0 +1,29 @@
+#!/usr/bin/env node
+
+console.log('\n---');
+console.log('Git Hook: pre-commit');
+console.log('Auto-exporting database state to seeds...');
+console.log('-----------------------------------------');
+
+const { spawnSync } = require('child_process');
+const path = require('path');
+
+// 1. Run the export script
+const exportResult = spawnSync('node', [path.join(__dirname, '../backend/scripts/export-db.js')], { stdio: 'inherit' });
+
+if (exportResult.status !== 0) {
+  console.error('\nDatabase export failed. Commit aborted.');
+  process.exit(1);
+}
+
+// 2. Automatically stage the newly created/updated seed files
+console.log('Staging seed files...');
+const stageResult = spawnSync('git', ['add', path.join(__dirname, '../backend/seeds/*.seed.json')], { stdio: 'inherit' });
+
+if (stageResult.status !== 0) {
+  console.warn('\nWarning: Could not automatically stage seed files.');
+}
+
+console.log('Database state captured and staged.');
+console.log('-----------------------------------------\n');
+process.exit(0);
