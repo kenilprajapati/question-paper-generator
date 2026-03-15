@@ -131,7 +131,7 @@ function Layout() {
                   initial={{ opacity: 0, x: -10 }}
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: -10 }}
-                  style={{ fontSize: '1.125rem', fontWeight: '700', letterSpacing: '-0.025em', color: 'var(--text-main)', whiteSpace: 'nowrap' }}
+                  style={{ fontSize: '1.125rem', fontWeight: '700', letterSpacing: '-0.025em', color: 'var(--text-main)', whiteSpace: 'nowrap', marginLeft: '-25px' }}
                 >
                   QP Generator
                 </motion.h3>
