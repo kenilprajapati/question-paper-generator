@@ -25,5 +25,5 @@ if (stageResult.status !== 0) {
 }
 
 console.log('Database state captured and staged.');
-console.log('-----------------------------------------\n');
+console.log('----------------------------------------------\n');
 process.exit(0);
