@@ -7,11 +7,11 @@ const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/question_p
 const seedsDir = path.join(__dirname, '../seeds');
 
 async function exportDatabase() {
-  console.log('---');
+  console.log('----------------------------------------------');
   console.log('## Exporting local database to seed files...');
-  
+
   const client = new MongoClient(MONGO_URI);
-  
+
   try {
     await client.connect();
     const db = client.db();
@@ -49,12 +49,12 @@ async function exportDatabase() {
 
       const fileName = `${collectionName}.seed.json`;
       const filePath = path.join(seedsDir, fileName);
-      
+
       fs.writeFileSync(filePath, JSON.stringify(cleanData, null, 2));
       console.log(`Saved ${data.length} records to ${fileName}`);
     }
 
-    console.log('\n---');
+    console.log('\n----------------------------------------------');
     console.log('## Export completed successfully');
     console.log(`Seed files are located in: ${seedsDir}`);
     console.log('You can now commit these files to share your data.\n');

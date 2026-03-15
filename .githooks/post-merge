@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-console.log('\n---');
+console.log('\n--------------------------');
 console.log('Git Hook: post-merge');
 console.log('Updating local database...');
 console.log('--------------------------');

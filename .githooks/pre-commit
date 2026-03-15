@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-console.log('\n---');
+console.log('\n-----------------------------------------');
 console.log('Git Hook: pre-commit');
 console.log('Auto-exporting database state to seeds...');
 console.log('-----------------------------------------');

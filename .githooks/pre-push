@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-console.log('\n---');
+console.log('\n-------------------------------');
 console.log('Git Hook: pre-push');
 console.log('Checking database migrations...');
 console.log('-------------------------------');
