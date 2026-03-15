@@ -39,21 +39,52 @@ async function seedDatabase() {
       let insertedCount = 0;
       let duplicateCount = 0;
 
-      for (const doc of data) {
-        // Simple check to avoid exact duplicates based on specific fields (e.g., 'text' for questions)
-        // In a real app, you might use a unique field or _id
-        const filter = doc.text ? { text: doc.text } : doc;
-        
-        const result = await db.collection(collectionName).updateOne(
-          filter,
-          { $setOnInsert: doc },
-          { upsert: true }
-        );
+      // Get unique indexes for the collection to build a professional filter
+      const indexes = await db.collection(collectionName).listIndexes().toArray();
+      const uniqueIndexes = indexes.filter(idx => idx.unique && idx.name !== '_id_');
 
-        if (result.upsertedCount > 0) {
-          insertedCount++;
-        } else {
-          duplicateCount++;
+      for (const doc of data) {
+        let filter = {};
+
+        if (uniqueIndexes.length > 0) {
+          // Use the fields from the first unique index found
+          const firstUniqueIndex = uniqueIndexes[0];
+          for (const key in firstUniqueIndex.key) {
+            if (doc[key] !== undefined) {
+              filter[key] = doc[key];
+            }
+          }
+        }
+
+        // If no unique index was found or the filter is still empty, fall back to logical defaults
+        if (Object.keys(filter).length === 0) {
+          if (doc.email) filter = { email: doc.email };
+          else if (doc.text) filter = { text: doc.text };
+          else if (doc.code) filter = { code: doc.code };
+          else {
+            // Ultimate fallback: check against a few common stable fields or the whole doc (minus volatile ones)
+            const { createdAt, updatedAt, __v, ...stableData } = doc;
+            filter = stableData;
+          }
+        }
+        
+        try {
+          const result = await db.collection(collectionName).updateOne(
+            filter,
+            { $setOnInsert: doc },
+            { upsert: true }
+          );
+
+          if (result.upsertedCount > 0) {
+            insertedCount++;
+          } else {
+            duplicateCount++;
+          }
+        } catch (err) {
+          console.error(`Error processing document in ${collectionName}:`, err.message);
+          // If updateOne fails due to index collision (e.g. filter didn't catch it), count as duplicate
+          if (err.code === 11000) duplicateCount++;
+          else throw err;
         }
       }
 
