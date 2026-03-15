@@ -1,0 +1,13 @@
+[
+  {
+    "name": "System Administrator",
+    "email": "admin@institution.edu",
+    "role": "admin",
+    "password": "$2b$12$MXKFq1XtFnL7WVh4XqjngeGn.p1pfolE6/egeVLXVsQFTXyDSKkLe",
+    "active": true,
+    "status": "Active",
+    "createdAt": "2026-03-15T17:00:52.627Z",
+    "updatedAt": "2026-03-15T17:00:52.627Z",
+    "__v": 0
+  }
+]
