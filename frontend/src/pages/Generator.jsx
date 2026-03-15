@@ -1,45 +1,46 @@
-import React, { useState, useRef } from 'react';
-import html2pdf from 'html2pdf.js';
+import React, { useState } from 'react';
+import { useMutation, useQuery } from '@tanstack/react-query';
+import { toast } from 'react-hot-toast';
+import { PDFDownloadLink, PDFViewer } from '@react-pdf/renderer';
+import axiosInstance from '../api/axiosInstance';
+import QuestionPaperPDF from '../components/QuestionPaperPDF';
+import SkeletonLoader from '../components/ui/Skeleton';
 
 function Generator() {
   const [currentStep, setCurrentStep] = useState(1);
   const [showPreview, setShowPreview] = useState(false);
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [previewGenerated, setPreviewGenerated] = useState(false);
-  const previewRef = useRef(null);
+  const [generatedPaper, setGeneratedPaper] = useState(null);
+  
   const [formData, setFormData] = useState({
-    subject: 'CS101 - Operating Systems',
+    subjectId: '',
     term: 'Mid-Term',
     units: [],
-    questionsPerUnit: 5
+    totalMarks: 70
   });
 
-  const sampleQuestions = {
-    mcq: [
-      { q: 'What is an Operating System?', options: ['Hardware', 'Software managing system resources', 'Programming Language', 'Compiler'] },
-      { q: 'What is Deadlock?', options: ['Process waiting indefinitely', 'CPU scheduling', 'Memory allocation', 'File system error'] },
-      { q: 'Which scheduling algorithm is non-preemptive?', options: ['Round Robin', 'FCFS', 'Priority', 'Multilevel Queue'] },
-      { q: 'What is Virtual Memory?', options: ['RAM only', 'Disk storage technique', 'Cache memory', 'ROM'] },
-      { q: 'What is a Process Control Block?', options: ['Hardware component', 'Data structure storing process info', 'Memory block', 'CPU register'] },
-      { q: 'What is Thrashing?', options: ['Excessive paging activity', 'CPU overload', 'Disk failure', 'Network congestion'] },
-      { q: 'What is a Semaphore?', options: ['Synchronization tool', 'Memory unit', 'CPU instruction', 'File type'] },
-      { q: 'What is Paging?', options: ['Memory management scheme', 'CPU scheduling', 'File organization', 'I/O operation'] },
-      { q: 'What is Context Switching?', options: ['Switching between processes', 'Memory swap', 'Disk operation', 'Network switch'] },
-      { q: 'What is RAID?', options: ['Redundant Array of Independent Disks', 'RAM type', 'CPU architecture', 'Network protocol'] }
-    ],
-    short: [
-      'Define Process Scheduling.',
-      'Explain the concept of Virtual Memory.',
-      'What is the difference between Process and Thread?',
-      'Define Critical Section Problem.',
-      'Explain Page Replacement Algorithm.'
-    ],
-    descriptive: [
-      'Explain the concept of Paging in Operating Systems with a suitable diagram.',
-      'Describe the different CPU scheduling algorithms with examples.',
-      'Explain Deadlock prevention and avoidance techniques in detail.'
-    ]
-  };
+  // Fetch subjects for the dropdown
+  const { data: subjectsData, isLoading: isLoadingSubjects } = useQuery({
+    queryKey: ['subjects'],
+    queryFn: async () => {
+      const response = await axiosInstance.get('/subjects');
+      return response.data.data.subjects;
+    }
+  });
+
+  const mutation = useMutation({
+    mutationFn: async (config) => {
+      const response = await axiosInstance.post('/generator/generate', config);
+      return response.data.data;
+    },
+    onSuccess: (data) => {
+      setGeneratedPaper(data);
+      setShowPreview(true);
+      toast.success('Question paper generated successfully!');
+    },
+    onError: (error) => {
+      toast.error(error.response?.data?.message || 'Generation failed');
+    }
+  });
 
   const steps = [
     { number: 1, title: 'Basic Info', icon: '📋' },
@@ -48,12 +49,12 @@ function Generator() {
   ];
 
   const handleNext = () => {
-    if (currentStep === 1 && !formData.subject) {
-      alert('Please select a subject');
+    if (currentStep === 1 && !formData.subjectId) {
+      toast.error('Please select a subject');
       return;
     }
     if (currentStep === 2 && formData.units.length === 0) {
-      alert('Please select at least one unit');
+      toast.error('Please select at least one unit');
       return;
     }
     if (currentStep < 3) setCurrentStep(currentStep + 1);
@@ -73,28 +74,11 @@ function Generator() {
   };
 
   const generatePreview = () => {
-    setIsGenerating(true);
-    setTimeout(() => {
-      setShowPreview(true);
-      setIsGenerating(false);
-      setPreviewGenerated(true);
-      setTimeout(() => {
-        previewRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }, 100);
-    }, 1500);
-  };
-
-  const exportToPDF = () => {
-    const element = previewRef.current;
-    const opt = {
-      margin: [15, 15, 15, 15],
-      filename: `paper_${formData.subject.split(' ')[0].toLowerCase()}_${formData.term.toLowerCase().replace('-', '')}_2026.pdf`,
-      image: { type: 'jpeg', quality: 0.98 },
-      html2canvas: { scale: 2, useCORS: true },
-      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-    };
-    
-    html2pdf().set(opt).from(element).save();
+    mutation.mutate({
+      subjectId: formData.subjectId,
+      totalMarks: formData.totalMarks,
+      units: formData.units
+    });
   };
 
   return (
@@ -106,9 +90,9 @@ function Generator() {
             </div>
         </div>
 
-        <div style={{ background: '#fff', borderRadius: '1rem', padding: '2rem', marginBottom: '1.5rem', boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)' }}>
+        <div style={{ background: 'var(--bg-card)', borderRadius: '1rem', padding: '2rem', marginBottom: '1.5rem', boxShadow: 'var(--shadow-sm)', border: '1px solid var(--border)' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'relative' }}>
-                <div style={{ position: 'absolute', top: '20px', left: '10%', right: '10%', height: '3px', background: '#e2e8f0', zIndex: 0 }}>
+                <div style={{ position: 'absolute', top: '20px', left: '10%', right: '10%', height: '3px', background: 'var(--border)', zIndex: 0 }}>
                   <div style={{ height: '100%', background: 'linear-gradient(90deg, #6366f1, #4f46e5)', width: `${((currentStep - 1) / 2) * 100}%`, transition: 'width 0.4s ease' }}></div>
                 </div>
                 
@@ -119,8 +103,8 @@ function Generator() {
                       style={{ 
                         width: '42px', 
                         height: '42px', 
-                        background: step.number <= currentStep ? 'linear-gradient(135deg, #6366f1, #4f46e5)' : '#e2e8f0', 
-                        color: step.number <= currentStep ? '#fff' : '#94a3b8', 
+                        background: step.number <= currentStep ? 'linear-gradient(135deg, #6366f1, #4f46e5)' : 'var(--border)', 
+                        color: step.number <= currentStep ? '#fff' : 'var(--text-sub)', 
                         borderRadius: '50%', 
                         margin: '0 auto 0.75rem auto', 
                         display: 'flex', 
@@ -131,13 +115,13 @@ function Generator() {
                         cursor: step.number <= currentStep ? 'pointer' : 'default',
                         boxShadow: step.number === currentStep ? '0 4px 12px rgba(99, 102, 241, 0.4)' : 'none',
                         transition: 'all 0.3s ease',
-                        border: step.number === currentStep ? '3px solid #fff' : 'none',
-                        outline: step.number === currentStep ? '2px solid #6366f1' : 'none'
+                        border: step.number === currentStep ? '3px solid var(--bg-card)' : 'none',
+                        outline: step.number === currentStep ? '2px solid var(--primary)' : 'none'
                       }}
                     >
                       {step.number < currentStep ? '✓' : step.number}
                     </div>
-                    <p style={{ fontSize: '0.75rem', fontWeight: 700, color: step.number <= currentStep ? '#6366f1' : '#94a3b8', letterSpacing: '0.05em', transition: 'color 0.3s ease' }}>
+                    <p style={{ fontSize: '0.75rem', fontWeight: 700, color: step.number <= currentStep ? 'var(--primary)' : 'var(--text-sub)', letterSpacing: '0.05em', transition: 'color 0.3s ease' }}>
                       {step.title.toUpperCase()}
                     </p>
                   </div>
@@ -153,21 +137,25 @@ function Generator() {
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.5rem' }}>
                 <div>
                   <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.5rem', color: '#475569' }}>Select Subject *</label>
-                  <select 
-                    className="form-control" 
-                    style={{ background: '#f8fafc', padding: '0.75rem', fontSize: '0.9rem' }}
-                    value={formData.subject}
-                    onChange={(e) => setFormData({...formData, subject: e.target.value})}
-                  >
-                    <option>CS101 - Operating Systems</option>
-                    <option>CS202 - Database Management</option>
-                    <option>CS303 - Computer Networks</option>
-                    <option>CS404 - Software Engineering</option>
-                  </select>
+                  {isLoadingSubjects ? (
+                    <SkeletonLoader height={40} />
+                  ) : (
+                    <select 
+                      className="form-control" 
+                      style={{ background: 'var(--bg-input)', padding: '0.75rem', fontSize: '0.9rem' }}
+                      value={formData.subjectId}
+                      onChange={(e) => setFormData({...formData, subjectId: e.target.value})}
+                    >
+                      <option value="">Select a subject</option>
+                      {subjectsData?.map(sub => (
+                        <option key={sub._id} value={sub._id}>{sub.code} - {sub.name}</option>
+                      ))}
+                    </select>
+                  )}
                 </div>
                 
                 <div>
-                  <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.5rem', color: '#475569' }}>Examination Term *</label>
+                  <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.5rem', color: 'var(--text-sub)' }}>Examination Term *</label>
                   <div style={{ display: 'flex', gap: '0.75rem' }}>
                     <button 
                       className={`btn ${formData.term === 'Mid-Term' ? 'btn-primary' : 'btn-sub'}`} 
@@ -203,91 +191,93 @@ function Generator() {
 
           {currentStep === 2 && (
             <div className="card" style={{ animation: 'fadeSlideIn 0.4s ease', padding: '2rem' }}>
-              <h3 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '1.5rem', color: '#1e293b' }}>📚 Unit Selection</h3>
+              <h3 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '1.5rem', color: 'var(--text-main)' }}>📚 Unit Selection</h3>
               
               <div style={{ marginBottom: '1.5rem' }}>
-                <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.75rem', color: '#475569' }}>Select Units to Include *</label>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '0.75rem' }}>
-                  {['OS Basics', 'Process Management', 'Memory Management', 'File Systems', 'I/O Management', 'Security'].map(unit => (
+                <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.75rem', color: 'var(--text-sub)' }}>Select Units to Include *</label>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))', gap: '0.75rem' }}>
+                  {['Unit 1', 'Unit 2', 'Unit 3', 'Unit 4', 'Unit 5'].map(unit => (
                     <div 
                       key={unit}
-                      onClick={() => toggleUnit(unit)}
+                      onClick={() => toggleUnit(unit.split(' ')[1])}
                       style={{ 
                         padding: '1rem', 
-                        background: formData.units.includes(unit) ? 'linear-gradient(135deg, #6366f1, #4f46e5)' : '#f8fafc', 
-                        color: formData.units.includes(unit) ? '#fff' : '#475569',
-                        border: formData.units.includes(unit) ? '2px solid #6366f1' : '2px solid #e2e8f0',
+                        background: formData.units.includes(unit.split(' ')[1]) ? 'linear-gradient(135deg, #6366f1, #4f46e5)' : 'var(--bg-body)', 
+                        color: formData.units.includes(unit.split(' ')[1]) ? '#fff' : 'var(--text-sub)',
+                        border: formData.units.includes(unit.split(' ')[1]) ? '2px solid var(--primary)' : '2px solid var(--border)',
                         borderRadius: '0.75rem',
                         cursor: 'pointer',
                         transition: 'all 0.2s ease',
                         fontWeight: 600,
                         fontSize: '0.875rem',
                         textAlign: 'center',
-                        boxShadow: formData.units.includes(unit) ? '0 4px 12px rgba(99, 102, 241, 0.3)' : 'none'
+                        boxShadow: formData.units.includes(unit.split(' ')[1]) ? '0 4px 12px rgba(99, 102, 241, 0.3)' : 'none'
                       }}
                     >
-                      {formData.units.includes(unit) && '✓ '}{unit}
+                      {formData.units.includes(unit.split(' ')[1]) && '✓ '}{unit}
                     </div>
                   ))}
                 </div>
               </div>
 
               <div style={{ marginTop: '2rem' }}>
-                <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.5rem', color: '#475569' }}>Questions per Unit</label>
+                <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.5rem', color: 'var(--text-sub)' }}>Total Marks</label>
                 <input 
                   type="number" 
                   className="form-control" 
                   style={{ maxWidth: '200px', padding: '0.75rem' }}
-                  value={formData.questionsPerUnit}
-                  onChange={(e) => setFormData({...formData, questionsPerUnit: parseInt(e.target.value)})}
-                  min="1"
-                  max="20"
+                  value={formData.totalMarks}
+                  onChange={(e) => setFormData({...formData, totalMarks: parseInt(e.target.value)})}
+                  min="10"
+                  max="100"
                 />
               </div>
 
               <div style={{ marginTop: '1.5rem', padding: '1rem', background: '#fef3c7', border: '1px solid #fde047', borderRadius: '0.75rem' }}>
                 <p style={{ fontSize: '0.8rem', color: '#854d0e', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                   <span style={{ fontSize: '1.1rem' }}>⚡</span>
-                  <span><strong>{formData.units.length}</strong> units selected • <strong>{formData.units.length * formData.questionsPerUnit}</strong> total questions will be generated</span>
+                  <span><strong>{formData.units.length}</strong> units selected • Target <strong>{formData.totalMarks}</strong> marks</span>
                 </p>
               </div>
             </div>
           )}
 
           {currentStep === 3 && (
-            <div className="card" style={{ animation: 'fadeSlideIn 0.4s ease', padding: '2rem' }}>
-              <h3 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '1.5rem', color: '#1e293b' }}>✓ Logic & Review</h3>
+           <div className="card" style={{ animation: 'fadeSlideIn 0.4s ease', padding: '2rem' }}>
+              <h3 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '1.5rem', color: 'var(--text-main)' }}>✓ Logic & Review</h3>
               
               <div style={{ marginBottom: '2rem' }}>
-                <h4 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '1rem', color: '#475569' }}>Generation Summary</h4>
+                <h4 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '1rem', color: 'var(--text-sub)' }}>Generation Summary</h4>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
-                  <div style={{ padding: '1rem', background: '#f0f9ff', borderRadius: '0.75rem', border: '1px solid #bae6fd' }}>
-                    <p style={{ fontSize: '0.75rem', color: '#0369a1', fontWeight: 600, marginBottom: '0.25rem' }}>SUBJECT</p>
-                    <p style={{ fontSize: '0.9rem', color: '#0c4a6e', fontWeight: 700 }}>{formData.subject}</p>
+                  <div style={{ padding: '1rem', background: 'var(--bg-body)', borderRadius: '0.75rem', border: '1px solid var(--border)' }}>
+                    <p style={{ fontSize: '0.75rem', color: 'var(--primary)', fontWeight: 600, marginBottom: '0.25rem' }}>SUBJECT</p>
+                    <p style={{ fontSize: '0.9rem', color: 'var(--text-main)', fontWeight: 700 }}>
+                      {subjectsData?.find(s => s._id === formData.subjectId)?.name || 'Not Selected'}
+                    </p>
                   </div>
-                  <div style={{ padding: '1rem', background: '#f0fdf4', borderRadius: '0.75rem', border: '1px solid #bbf7d0' }}>
-                    <p style={{ fontSize: '0.75rem', color: '#15803d', fontWeight: 600, marginBottom: '0.25rem' }}>TERM</p>
-                    <p style={{ fontSize: '0.9rem', color: '#166534', fontWeight: 700 }}>{formData.term}</p>
+                  <div style={{ padding: '1rem', background: 'var(--bg-body)', borderRadius: '0.75rem', border: '1px solid var(--border)' }}>
+                    <p style={{ fontSize: '0.75rem', color: '#10b981', fontWeight: 600, marginBottom: '0.25rem' }}>TERM</p>
+                    <p style={{ fontSize: '0.9rem', color: 'var(--text-main)', fontWeight: 700 }}>{formData.term}</p>
                   </div>
-                  <div style={{ padding: '1rem', background: '#fef3c7', borderRadius: '0.75rem', border: '1px solid #fde047' }}>
-                    <p style={{ fontSize: '0.75rem', color: '#a16207', fontWeight: 600, marginBottom: '0.25rem' }}>UNITS</p>
-                    <p style={{ fontSize: '0.9rem', color: '#854d0e', fontWeight: 700 }}>{formData.units.length} Selected</p>
+                  <div style={{ padding: '1rem', background: 'var(--bg-body)', borderRadius: '0.75rem', border: '1px solid var(--border)' }}>
+                    <p style={{ fontSize: '0.75rem', color: '#f59e0b', fontWeight: 600, marginBottom: '0.25rem' }}>UNITS</p>
+                    <p style={{ fontSize: '0.9rem', color: 'var(--text-main)', fontWeight: 700 }}>{formData.units.length} Selected</p>
                   </div>
-                  <div style={{ padding: '1rem', background: '#fae8ff', borderRadius: '0.75rem', border: '1px solid #f0abfc' }}>
-                    <p style={{ fontSize: '0.75rem', color: '#a21caf', fontWeight: 600, marginBottom: '0.25rem' }}>QUESTIONS</p>
-                    <p style={{ fontSize: '0.9rem', color: '#86198f', fontWeight: 700 }}>{formData.units.length * formData.questionsPerUnit} Total</p>
+                  <div style={{ padding: '1rem', background: 'var(--bg-body)', borderRadius: '0.75rem', border: '1px solid var(--border)' }}>
+                    <p style={{ fontSize: '0.75rem', color: '#8b5cf6', fontWeight: 600, marginBottom: '0.25rem' }}>QUESTIONS</p>
+                    <p style={{ fontSize: '0.9rem', color: 'var(--text-main)', fontWeight: 700 }}>{formData.totalMarks} Marks</p>
                   </div>
                 </div>
               </div>
 
               <div>
-                <h4 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '1rem', color: '#475569' }}>Constraint Engine Logic</h4>
-                <div style={{ background: '#fef2f2', border: '2px solid #fecaca', padding: '1.25rem', borderRadius: '0.75rem' }}>
+                <h4 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '1rem', color: 'var(--text-sub)' }}>Constraint Engine Logic</h4>
+                <div style={{ background: 'rgba(239, 68, 68, 0.1)', border: '2px solid #fca5a5', padding: '1.25rem', borderRadius: '0.75rem' }}>
                   <div style={{ display: 'flex', gap: '1rem', alignItems: 'start' }}>
                     <div style={{ fontSize: '1.5rem' }}>⚠️</div>
                     <div>
-                      <p style={{ fontWeight: 700, color: '#991b1b', fontSize: '0.95rem', marginBottom: '0.5rem' }}>Strict Exclusion Applied</p>
-                      <p style={{ fontSize: '0.85rem', color: '#b91c1c', lineHeight: '1.6' }}>
+                      <p style={{ fontWeight: 700, color: '#ef4444', fontSize: '0.95rem', marginBottom: '0.5rem' }}>Strict Exclusion Applied</p>
+                      <p style={{ fontSize: '0.85rem', color: '#f87171', lineHeight: '1.6' }}>
                         Questions appearing in <strong>Academic Year 2025</strong> are auto-blocked for this generation cycle to maintain set uniqueness and prevent repetition.
                       </p>
                     </div>
@@ -333,45 +323,58 @@ function Generator() {
               <button 
                 className="btn btn-primary" 
                 onClick={generatePreview}
-                disabled={isGenerating}
-                style={{ padding: '0.75rem 1.5rem', fontSize: '0.9rem', background: isGenerating ? '#94a3b8' : 'linear-gradient(135deg, #6366f1, #4f46e5)', boxShadow: '0 4px 12px rgba(99, 102, 241, 0.3)', cursor: isGenerating ? 'not-allowed' : 'pointer' }}
+                disabled={mutation.isPending}
+                style={{ padding: '0.75rem 1.5rem', fontSize: '0.9rem', background: mutation.isPending ? '#94a3b8' : 'linear-gradient(135deg, #6366f1, #4f46e5)', boxShadow: '0 4px 12px rgba(99, 102, 241, 0.3)', cursor: mutation.isPending ? 'not-allowed' : 'pointer' }}
               >
-                {isGenerating ? (
+                {mutation.isPending ? (
                   <>
                     <span style={{ display: 'inline-block', animation: 'spin 1s linear infinite' }}>⏳</span> Generating...
                   </>
                 ) : (
-                  <>🔍 Preview Generation Layout</>
+                  <>🔍 Generate Paper</>
                 )}
               </button>
             )}
           </div>
         </div>
 
-        {showPreview && (
+        {generatedPaper && (
             <div style={{ marginTop: '2rem', animation: 'fadeSlideIn 0.5s ease' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-                    <h2 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#1e293b' }}>📄 Paper Preview</h2>
+                    <h2 style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--text-main)' }}>📄 Paper Preview</h2>
                     <div style={{ display: 'flex', gap: '0.75rem' }}>
-                        <button 
+                          <button 
                             className="btn btn-sub"
-                            onClick={() => setShowPreview(false)}
+                            onClick={() => setGeneratedPaper(null)} // Close button now clears generatedPaper
                             style={{ padding: '0.65rem 1.25rem', fontSize: '0.85rem' }}
-                        >
-                            ✕ Close Preview
-                        </button>
-                        <button 
-                            className="btn btn-primary"
-                            onClick={exportToPDF}
-                            disabled={!previewGenerated}
-                            style={{ padding: '0.65rem 1.25rem', fontSize: '0.85rem', background: previewGenerated ? 'linear-gradient(135deg, #10b981, #059669)' : '#94a3b8', cursor: previewGenerated ? 'pointer' : 'not-allowed' }}
-                        >
-                            📥 Export PDF
-                        </button>
+                          >
+                            ✕ Close
+                          </button>
+                          
+                          <PDFDownloadLink
+                            document={
+                              <QuestionPaperPDF 
+                                data={generatedPaper} 
+                                subject={subjectsData?.find(s => s._id === formData.subjectId)?.name} 
+                                term={formData.term} 
+                              />
+                            }
+                            fileName={`paper_${formData.term.toLowerCase()}.pdf`}
+                          >
+                            {({ loading }) => (
+                              <button 
+                                className="btn btn-primary"
+                                disabled={loading}
+                                style={{ padding: '0.65rem 1.25rem', fontSize: '0.85rem', background: 'linear-gradient(135deg, #10b981, #059669)' }}
+                              >
+                                {loading ? 'Preparing PDF...' : '📥 Export PDF'}
+                              </button>
+                            )}
+                          </PDFDownloadLink>
                     </div>
                 </div>
 
-                {previewGenerated && (
+                {generatedPaper && ( // Use generatedPaper for this message
                     <div style={{ padding: '1rem', background: '#d1fae5', border: '1px solid #6ee7b7', borderRadius: '0.75rem', marginBottom: '1.5rem' }}>
                         <p style={{ fontSize: '0.875rem', color: '#065f46', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                             <span style={{ fontSize: '1.2rem' }}>✅</span>
@@ -380,82 +383,27 @@ function Generator() {
                     </div>
                 )}
 
-                <div 
-                    ref={previewRef}
-                    style={{ 
-                        background: '#fff', 
-                        border: '1px solid #d1d5db', 
-                        padding: '3rem 2.5rem', 
-                        maxWidth: '210mm',
-                        minHeight: '297mm',
-                        margin: '0 auto', 
-                        boxShadow: '0 4px 20px rgba(0,0,0,0.15)', 
-                        fontFamily: '"Times New Roman", serif',
-                        borderRadius: '0.5rem'
-                    }}
-                >
-                    <div style={{ textAlign: 'center', borderBottom: '3px double #000', paddingBottom: '1.5rem', marginBottom: '2rem' }}>
-                        <h3 style={{ fontSize: '1.6rem', fontFamily: '"Times New Roman", serif', fontWeight: 'bold', marginBottom: '0.5rem', letterSpacing: '0.05em' }}>UNIVERSITY OF TECHNOLOGY</h3>
-                        <p style={{ fontSize: '1.1rem', marginTop: '0.5rem', fontWeight: 'bold', letterSpacing: '0.03em' }}>FACULTY OF COMPUTER APPLICATIONS</p>
-                        <p style={{ marginTop: '1rem', fontSize: '1rem', fontWeight: 'bold' }}>{formData.term.toUpperCase()} EXAMINATION : 2026</p>
+                {generatedPaper && ( // Use generatedPaper for PDFViewer visibility
+                    <div 
+                        style={{ 
+                            background: '#fff', 
+                            border: '1px solid var(--border)', 
+                            padding: '1rem',
+                            height: '600px',
+                            borderRadius: '0.5rem',
+                            overflow: 'hidden',
+                            marginBottom: '1.5rem'
+                        }}
+                    >
+                        <PDFViewer width="100%" height="100%" showToolbar={false} style={{ border: 'none' }}>
+                           <QuestionPaperPDF 
+                              data={generatedPaper} 
+                              subject={subjectsData?.find(s => s._id === formData.subjectId)?.name} 
+                              term={formData.term} 
+                            />
+                        </PDFViewer>
                     </div>
-
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', marginBottom: '2.5rem', fontSize: '0.95rem' }}>
-                        <span>Subject: {formData.subject}</span>
-                        <span>Total Marks: 70</span>
-                    </div>
-
-                    <div style={{ marginBottom: '1.5rem', padding: '0.75rem', background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: '0.25rem' }}>
-                        <p style={{ fontSize: '0.9rem', fontWeight: 'bold', marginBottom: '0.25rem' }}>Instructions:</p>
-                        <ul style={{ fontSize: '0.85rem', marginLeft: '1.5rem', lineHeight: '1.6' }}>
-                            <li>Answer all questions.</li>
-                            <li>Write clearly and legibly.</li>
-                            <li>All questions carry equal marks unless specified.</li>
-                        </ul>
-                    </div>
-
-                    <div style={{ marginBottom: '2.5rem' }}>
-                        <p style={{ fontWeight: 'bold', marginBottom: '1rem', fontSize: '1rem', borderBottom: '2px solid #000', paddingBottom: '0.5rem' }}>
-                            SECTION A: MULTIPLE CHOICE QUESTIONS (1 × 10 = 10 Marks)
-                        </p>
-                        {sampleQuestions.mcq.map((item, idx) => (
-                            <div key={idx} style={{ marginBottom: '1.5rem' }}>
-                                <p style={{ fontWeight: 'bold', marginBottom: '0.5rem' }}>Q{idx + 1}. {item.q}</p>
-                                <div style={{ marginLeft: '1.5rem', lineHeight: '1.8' }}>
-                                    {item.options.map((opt, i) => (
-                                        <p key={i} style={{ margin: '0.25rem 0' }}>({String.fromCharCode(65 + i)}) {opt}</p>
-                                    ))}
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-
-                    <div style={{ marginBottom: '2.5rem' }}>
-                        <p style={{ fontWeight: 'bold', marginBottom: '1rem', fontSize: '1rem', borderBottom: '2px solid #000', paddingBottom: '0.5rem' }}>
-                            SECTION B: SHORT ANSWER QUESTIONS (4 × 5 = 20 Marks)
-                        </p>
-                        {sampleQuestions.short.map((q, idx) => (
-                            <p key={idx} style={{ marginBottom: '1.5rem', lineHeight: '1.8' }}>
-                                Q{idx + 11}. {q}
-                            </p>
-                        ))}
-                    </div>
-
-                    <div style={{ marginBottom: '2rem' }}>
-                        <p style={{ fontWeight: 'bold', marginBottom: '1rem', fontSize: '1rem', borderBottom: '2px solid #000', paddingBottom: '0.5rem' }}>
-                            SECTION C: DESCRIPTIVE QUESTIONS (10 × 3 = 30 Marks)
-                        </p>
-                        {sampleQuestions.descriptive.map((q, idx) => (
-                            <p key={idx} style={{ marginBottom: '2rem', lineHeight: '1.8' }}>
-                                Q{idx + 16}. {q}
-                            </p>
-                        ))}
-                    </div>
-
-                    <p style={{ textAlign: 'center', fontStyle: 'italic', borderTop: '2px solid #000', paddingTop: '1.5rem', marginTop: '4rem', fontSize: '0.9rem' }}>
-                        *** End of Question Paper ***
-                    </p>
-                </div>
+                )}
             </div>
         )}
     </div>

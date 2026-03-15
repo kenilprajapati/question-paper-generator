@@ -1,0 +1,22 @@
+#!/usr/bin/env node
+
+console.log('\n---');
+console.log('Git Hook: pre-push');
+console.log('Checking database migrations...');
+console.log('-------------------------------');
+
+const { spawnSync } = require('child_process');
+const path = require('path');
+
+console.log('Running migration script...');
+
+const result = spawnSync('node', [path.join(__dirname, '../backend/scripts/run-migrations.js')], { stdio: 'inherit' });
+
+if (result.status !== 0) {
+  console.error('\nMigration check failed. Push aborted.');
+  process.exit(1);
+}
+
+console.log('Migration completed');
+console.log('Database schema verified\n');
+process.exit(0);

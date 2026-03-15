@@ -46,10 +46,10 @@ async function callGemini(userMessage) {
 
 function TypingIndicator() {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '10px 14px', background: '#f1f5f9', borderRadius: '18px 18px 18px 4px', width: 'fit-content', maxWidth: 80 }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '10px 14px', background: 'var(--bg-body)', borderRadius: '18px 18px 18px 4px', width: 'fit-content', maxWidth: 80, border: '1px solid var(--border)' }}>
       {[0, 1, 2].map(i => (
         <span key={i} style={{
-          width: 7, height: 7, borderRadius: '50%', background: '#94a3b8',
+          width: 7, height: 7, borderRadius: '50%', background: 'var(--text-sub)',
           animation: 'typingBounce 1.2s infinite',
           animationDelay: `${i * 0.2}s`,
           display: 'inline-block'
@@ -155,13 +155,13 @@ export default function AIChatbot() {
             </button>
             <div style={{
               position: 'absolute', bottom: '110%', right: 0, marginBottom: 6,
-              background: '#1e293b', color: '#fff', fontSize: '0.75rem', fontWeight: 600,
+              background: 'var(--bg-card)', color: 'var(--text-main)', fontSize: '0.75rem', fontWeight: 600,
               padding: '5px 10px', borderRadius: 8, whiteSpace: 'nowrap',
-              pointerEvents: 'none', opacity: 0.92,
-              boxShadow: '0 4px 12px rgba(0,0,0,0.2)'
+              pointerEvents: 'none', opacity: 0.95,
+              boxShadow: 'var(--shadow-md)', border: '1px solid var(--border)'
             }}>
               Ask AI Assistant
-              <div style={{ position: 'absolute', bottom: -4, right: 14, width: 8, height: 8, background: '#1e293b', transform: 'rotate(45deg)' }} />
+              <div style={{ position: 'absolute', bottom: -4, right: 14, width: 8, height: 8, background: 'var(--bg-card)', borderRight: '1px solid var(--border)', borderBottom: '1px solid var(--border)', transform: 'rotate(45deg)' }} />
             </div>
           </div>
         </div>
@@ -174,10 +174,10 @@ export default function AIChatbot() {
           style={{
             position: 'fixed', bottom: 24, right: 24, zIndex: 9999,
             width: 360, height: 520,
-            background: '#fff', borderRadius: 20,
-            boxShadow: '0 24px 64px rgba(0,0,0,0.18), 0 4px 16px rgba(99,102,241,0.12)',
+            background: 'var(--bg-card)', borderRadius: 20,
+            boxShadow: 'var(--shadow-lg)',
             display: 'flex', flexDirection: 'column', overflow: 'hidden',
-            border: '1px solid #e2e8f0'
+            border: '1px solid var(--border)'
           }}
         >
           {/* Header */}
@@ -218,10 +218,11 @@ export default function AIChatbot() {
                 )}
                 <div style={{
                   maxWidth: '75%', padding: '10px 14px', borderRadius: msg.role === 'user' ? '18px 18px 4px 18px' : '18px 18px 18px 4px',
-                  background: msg.role === 'user' ? 'linear-gradient(135deg,#6366f1,#4f46e5)' : '#f1f5f9',
-                  color: msg.role === 'user' ? '#fff' : '#1e293b',
+                  background: msg.role === 'user' ? 'linear-gradient(135deg,#6366f1,#4f46e5)' : 'var(--bg-body)',
+                  color: msg.role === 'user' ? '#fff' : 'var(--text-main)',
                   fontSize: '0.875rem', lineHeight: 1.55, fontWeight: 400,
                   boxShadow: msg.role === 'user' ? '0 4px 12px rgba(99,102,241,0.25)' : 'none',
+                  border: msg.role === 'user' ? 'none' : '1px solid var(--border)',
                   whiteSpace: 'pre-wrap', wordBreak: 'break-word'
                 }}>
                   {msg.text}
@@ -248,7 +249,7 @@ export default function AIChatbot() {
                     onClick={() => sendMessage(s)}
                     style={{
                       padding: '5px 12px', borderRadius: 20, fontSize: '0.75rem', fontWeight: 600,
-                      border: '1.5px solid #e2e8f0', background: '#f8fafc', color: '#64748b',
+                      border: '1.5px solid var(--border)', background: 'var(--bg-body)', color: 'var(--text-sub)',
                       cursor: 'pointer', transition: 'all 0.18s', whiteSpace: 'nowrap'
                     }}
                   >
@@ -262,7 +263,7 @@ export default function AIChatbot() {
           </div>
 
           {/* Input */}
-          <div style={{ padding: '0.875rem 1rem', borderTop: '1px solid #e2e8f0', display: 'flex', gap: '0.625rem', alignItems: 'center', flexShrink: 0, background: '#fff' }}>
+          <div style={{ padding: '0.875rem 1rem', borderTop: '1px solid var(--border)', display: 'flex', gap: '0.625rem', alignItems: 'center', flexShrink: 0, background: 'var(--bg-card)' }}>
             <input
               ref={inputRef}
               className="chat-input"
@@ -273,8 +274,8 @@ export default function AIChatbot() {
               disabled={loading}
               style={{
                 flex: 1, padding: '0.65rem 0.875rem', borderRadius: 12,
-                border: '1.5px solid #e2e8f0', fontSize: '0.875rem',
-                fontFamily: 'inherit', background: '#f8fafc', color: '#1e293b',
+                border: '1.5px solid var(--border)', fontSize: '0.875rem',
+                fontFamily: 'inherit', background: 'var(--bg-input)', color: 'var(--text-main)',
                 transition: 'border 0.2s, box-shadow 0.2s', resize: 'none'
               }}
             />

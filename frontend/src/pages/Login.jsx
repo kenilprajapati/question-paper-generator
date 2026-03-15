@@ -1,70 +1,100 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useDispatch, useSelector } from 'react-redux';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Mail, Lock, ShieldCheck, Eye, EyeOff, ArrowRight, Loader2 } from 'lucide-react';
+import { z } from 'zod';
+import { toast } from 'react-hot-toast';
+import { useZodForm } from '../hooks/useZodForm';
+import { setCredentials, selectIsAuthenticated } from '../store/slices/authSlice';
+import axiosInstance from '../api/axiosInstance';
+import logo from '../assets/logo/logo1.png';
+
+const loginSchema = z.object({
+  email: z.string().email('Please enter a valid institution email'),
+  password: z.string().min(8, 'Password must be at least 8 characters'),
+  role: z.enum(['admin', 'faculty'], {
+    errorMap: () => ({ message: 'Please select your institutional role' }),
+  }),
+});
 
 function Login() {
   const navigate = useNavigate();
-  const [formData, setFormData] = useState({
+  const dispatch = useDispatch();
+  const isAuthenticated = useSelector(selectIsAuthenticated);
+  const [showPassword, setShowPassword] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Auto-redirect if already logged in (important for back button navigation)
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate('/app/dashboard', { replace: true });
+    }
+  }, [isAuthenticated, navigate]);
+
+  const { register, handleSubmit, errors, watch, setValue } = useZodForm(loginSchema, {
     email: '',
     password: '',
-    accessLevel: ''
+    role: 'faculty',
   });
-  const [errors, setErrors] = useState({});
-  const [isLoading, setIsLoading] = useState(false);
-  const [successMessage, setSuccessMessage] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
 
-  const validateEmail = (email) => {
-    if (!email) return 'Please enter a valid email address';
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) return 'Please enter a valid email address';
-    return '';
-  };
+  const selectedRole = watch('role');
 
-  const validatePassword = (password) => {
-    if (!password) return 'Password must be at least 8 characters with one uppercase letter and one number';
-    if (password.length < 8 || !/[A-Z]/.test(password) || !/[0-9]/.test(password)) {
-      return 'Password must be at least 8 characters with one uppercase letter and one number';
+  const onLogin = async (data) => {
+    console.log('FRONTEND LOGIN SUBMIT:', { email: data.email, role: data.role });
+    setIsLoading(true);
+    try {
+      const response = await axiosInstance.post('/auth/login', {
+        email: data.email,
+        password: data.password,
+        role: data.role
+      });
+
+      const { user, token } = response.data.data;
+      dispatch(setCredentials({ user, token }));
+      toast.success(`Welcome back, ${user.name}!`);
+      navigate('/app/dashboard');
+    } catch (error) {
+      console.error('LOGIN ERROR DETAIL:', error);
+      
+      let message = 'An unexpected error occurred.';
+      
+      if (!error.response) {
+        // No response from server (network error or server down)
+        message = 'Server is currently offline. Please contact the administrator.';
+      } else {
+        // Server responded with an error (401, 400, etc.)
+        message = error.response.data?.message || 'Authentication failed. Please check your credentials.';
+      }
+      
+      toast.error(message, {
+        duration: 4000,
+        style: {
+          borderRadius: '10px',
+          background: '#333',
+          color: '#fff',
+        },
+      });
+    } finally {
+      setIsLoading(false);
     }
-    return '';
   };
 
-  const validateAccessLevel = (level) => {
-    if (!level) return 'Please select an access level';
-    return '';
-  };
-
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
-    setSuccessMessage('');
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    
-    // Validate all fields
-    const newErrors = {
-      email: validateEmail(formData.email),
-      password: validatePassword(formData.password),
-      accessLevel: validateAccessLevel(formData.accessLevel)
-    };
-
-    setErrors(newErrors);
-
-    // Check if there are any errors
-    const hasErrors = Object.values(newErrors).some(error => error !== '');
-    
-    if (!hasErrors) {
-      setIsLoading(true);
-      // Simulate API call
-      setTimeout(() => {
-        setIsLoading(false);
-        setSuccessMessage('Login successful');
-        setTimeout(() => {
-          navigate('/app/dashboard');
-        }, 1000);
-      }, 1500);
+  const containerVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: {
+        duration: 0.6,
+        staggerChildren: 0.1
+      }
     }
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, x: -10 },
+    visible: { opacity: 1, x: 0 }
   };
 
   return (
@@ -74,102 +104,80 @@ function Login() {
       justifyContent: 'center',
       minHeight: '100vh',
       width: '100%',
-      background: 'linear-gradient(135deg, #1e1b4b 0%, #4338ca 100%)',
-      padding: '1rem'
+      background: 'var(--bg-body)',
+      padding: '1.5rem',
+      fontFamily: "'Inter', sans-serif"
     }}>
-      <div style={{
-        background: '#f3f4f6',
-        padding: '3rem 2.5rem',
-        borderRadius: '24px',
-        width: '100%',
-        maxWidth: '420px',
-        boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)'
-      }}>
-        {/* Icon */}
-        <div style={{
-          width: '64px',
-          height: '64px',
-          background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
-          borderRadius: '12px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          margin: '0 auto 1.5rem',
-          fontSize: '2rem',
-          fontWeight: 'bold',
-          color: '#fff',
-          boxShadow: '0 4px 6px -1px rgba(99, 102, 241, 0.3)'
-        }}>
-          Q
-        </div>
-
-        {/* Title */}
-        <h2 style={{
-          textAlign: 'center',
-          fontSize: '1.75rem',
-          fontWeight: 'bold',
-          color: '#1e1b4b',
-          marginBottom: '2rem'
-        }}>
-          Question Paper Generator
+      <motion.div
+        variants={containerVariants}
+        initial="hidden"
+        animate="visible"
+        style={{
+          background: 'var(--bg-card)',
+          border: '1px solid var(--border)',
+          padding: '3rem 2rem',
+          borderRadius: '24px',
+          width: '100%',
+          maxWidth: '420px',
+          boxShadow: 'var(--shadow-md)',
+          zIndex: 1,
+          position: 'relative'
+        }}
+      >
+        <h2 style={{ fontSize: '2.625rem', fontWeight: 800, color: 'var(--text-main)', letterSpacing: '-0.025em', marginBottom: '1.5rem', textAlign: 'center' }}>
+          Login
         </h2>
-
-        {/* Success Message */}
-        {successMessage && (
+        {/* Logo Section */}
+        <motion.div variants={itemVariants} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: '1.5rem' }}>
           <div style={{
-            padding: '0.75rem',
-            marginBottom: '1.5rem',
-            background: '#d1fae5',
-            color: '#065f46',
-            borderRadius: '8px',
-            textAlign: 'center',
-            fontSize: '0.875rem',
-            fontWeight: '500'
+            width: '140px',
+            height: '140px',
+            background: 'var(--bg-card)',
+            borderRadius: '100px',
+            marginBottom: '1.25rem',
+            boxShadow: 'var(--shadow-sm)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
           }}>
-            {successMessage}
+            <img
+              src={logo}
+              alt="Logo"
+              style={{
+                width: '100%',
+                height: '100%',
+                objectFit: 'contain',
+                filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.05))' // Subtle lift for the logo itself
+              }}
+            />
           </div>
-        )}
+          <p style={{ color: '#64748b', fontSize: '1.5rem', fontWeight: 500, letterSpacing: '0.01em', textAlign: 'center', marginTop: '0.5rem' }}>
+            Question Paper Generator
+          </p>
+        </motion.div>
 
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit(onLogin)} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+
           {/* Email Field */}
-          <div style={{ marginBottom: '1.5rem' }}>
-            <label style={{
-              display: 'block',
-              fontSize: '0.875rem',
-              fontWeight: '600',
-              marginBottom: '0.5rem',
-              color: '#374151'
-            }}>
-              Email ID
+          <motion.div variants={itemVariants}>
+            <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: '#334155', marginBottom: '0.5rem' }}>
+              Email Address
             </label>
             <div style={{ position: 'relative' }}>
-              <div style={{
-                position: 'absolute',
-                left: '12px',
-                top: '50%',
-                transform: 'translateY(-50%)',
-                display: 'flex',
-                alignItems: 'center',
-                color: '#6b7280',
-                pointerEvents: 'none'
-              }}>
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <rect x="2" y="4" width="20" height="16" rx="2"/>
-                  <path d="m2 7 10 6 10-6"/>
-                </svg>
+              <div style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }}>
+                <Mail size={18} />
               </div>
               <input
                 type="email"
-                name="email"
-                value={formData.email}
-                onChange={handleChange}
-                placeholder="miller@university.edu"
+                {...register('email')}
+                placeholder="Enter your email"
                 style={{
                   width: '100%',
-                  padding: '0.75rem 1rem 0.75rem 2.75rem',
-                  border: errors.email ? '2px solid #ef4444' : '1px solid #d1d5db',
+                  padding: '0.75rem 1rem 0.75rem 2.5rem',
+                  background: 'var(--bg-input)',
+                  border: errors.email ? '1.5px solid #ef4444' : '1.5px solid var(--border)',
                   borderRadius: '12px',
-                  background: '#fff',
+                  color: 'var(--text-main)',
                   fontSize: '0.95rem',
                   outline: 'none',
                   transition: 'all 0.2s',
@@ -178,65 +186,42 @@ function Login() {
                 onFocus={(e) => {
                   if (!errors.email) {
                     e.target.style.borderColor = '#6366f1';
-                    e.target.style.boxShadow = '0 0 0 3px rgba(99, 102, 241, 0.1)';
+                    e.target.style.background = '#fff';
                   }
                 }}
                 onBlur={(e) => {
-                  e.target.style.borderColor = errors.email ? '#ef4444' : '#d1d5db';
-                  e.target.style.boxShadow = 'none';
+                  e.target.style.borderColor = errors.email ? '#ef4444' : 'var(--border)';
+                  e.target.style.background = 'var(--bg-input)';
                 }}
               />
             </div>
             {errors.email && (
-              <p style={{
-                color: '#ef4444',
-                fontSize: '0.75rem',
-                marginTop: '0.375rem',
-                marginLeft: '0.25rem'
-              }}>
-                {errors.email}
-              </p>
+              <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} style={{ color: '#ef4444', fontSize: '0.75rem', marginTop: '0.375rem', fontWeight: 500 }}>
+                {errors.email.message}
+              </motion.p>
             )}
-          </div>
+          </motion.div>
 
           {/* Password Field */}
-          <div style={{ marginBottom: '1.5rem' }}>
-            <label style={{
-              display: 'block',
-              fontSize: '0.875rem',
-              fontWeight: '600',
-              marginBottom: '0.5rem',
-              color: '#374151'
-            }}>
+          <motion.div variants={itemVariants}>
+            <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-sub)', marginBottom: '0.5rem' }}>
               Password
             </label>
             <div style={{ position: 'relative' }}>
-              <div style={{
-                position: 'absolute',
-                left: '12px',
-                top: '50%',
-                transform: 'translateY(-50%)',
-                display: 'flex',
-                alignItems: 'center',
-                color: '#6b7280',
-                pointerEvents: 'none'
-              }}>
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
-                  <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-                </svg>
+              <div style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }}>
+                <Lock size={18} />
               </div>
               <input
                 type={showPassword ? 'text' : 'password'}
-                name="password"
-                value={formData.password}
-                onChange={handleChange}
+                {...register('password')}
+                placeholder="Enter password"
                 style={{
                   width: '100%',
-                  padding: '0.75rem 3rem 0.75rem 2.75rem',
-                  border: errors.password ? '2px solid #ef4444' : '1px solid #d1d5db',
+                  padding: '0.75rem 3rem 0.75rem 2.5rem',
+                  background: 'var(--bg-input)',
+                  border: errors.password ? '1.5px solid #ef4444' : '1.5px solid var(--border)',
                   borderRadius: '12px',
-                  background: '#fff',
+                  color: 'var(--text-main)',
                   fontSize: '0.95rem',
                   outline: 'none',
                   transition: 'all 0.2s',
@@ -245,12 +230,12 @@ function Login() {
                 onFocus={(e) => {
                   if (!errors.password) {
                     e.target.style.borderColor = '#6366f1';
-                    e.target.style.boxShadow = '0 0 0 3px rgba(99, 102, 241, 0.1)';
+                    e.target.style.background = '#fff';
                   }
                 }}
                 onBlur={(e) => {
-                  e.target.style.borderColor = errors.password ? '#ef4444' : '#d1d5db';
-                  e.target.style.boxShadow = 'none';
+                  e.target.style.borderColor = errors.password ? '#ef4444' : 'var(--border)';
+                  e.target.style.background = 'var(--bg-input)';
                 }}
               />
               <button
@@ -264,198 +249,89 @@ function Login() {
                   background: 'none',
                   border: 'none',
                   cursor: 'pointer',
-                  padding: '4px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: '#6b7280',
-                  transition: 'color 0.2s'
+                  color: '#94a3b8',
+                  padding: '4px'
                 }}
-                onMouseEnter={(e) => e.target.style.color = '#4f46e5'}
-                onMouseLeave={(e) => e.target.style.color = '#6b7280'}
               >
-                {showPassword ? (
-                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
-                    <line x1="1" y1="1" x2="23" y2="23"/>
-                  </svg>
-                ) : (
-                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                    <circle cx="12" cy="12" r="3"/>
-                  </svg>
-                )}
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
             </div>
             {errors.password && (
-              <p style={{
-                color: '#ef4444',
-                fontSize: '0.75rem',
-                marginTop: '0.375rem',
-                marginLeft: '0.25rem'
-              }}>
-                {errors.password}
-              </p>
+              <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} style={{ color: '#ef4444', fontSize: '0.75rem', marginTop: '0.375rem', fontWeight: 500 }}>
+                {errors.password.message}
+              </motion.p>
             )}
-          </div>
+          </motion.div>
 
-          {/* Access Level Field */}
-          <div style={{ marginBottom: '2rem' }}>
-            <label style={{
-              display: 'block',
-              fontSize: '0.875rem',
-              fontWeight: '600',
-              marginBottom: '0.5rem',
-              color: '#374151'
-            }}>
+          {/* Role Selection */}
+          <motion.div variants={itemVariants}>
+            <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-sub)', marginBottom: '0.5rem' }}>
               Access Level
             </label>
-            <div style={{ position: 'relative' }}>
-              <div style={{
-                position: 'absolute',
-                left: '12px',
-                top: '50%',
-                transform: 'translateY(-50%)',
-                display: 'flex',
-                alignItems: 'center',
-                color: '#6b7280',
-                pointerEvents: 'none',
-                zIndex: 1
-              }}>
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
-                  <circle cx="9" cy="7" r="4"/>
-                  <path d="M22 21v-2a4 4 0 0 0-3-3.87"/>
-                  <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-                </svg>
-              </div>
-              <select
-                name="accessLevel"
-                value={formData.accessLevel}
-                onChange={handleChange}
-                style={{
-                  width: '100%',
-                  padding: '0.75rem 1rem 0.75rem 2.75rem',
-                  border: errors.accessLevel ? '2px solid #ef4444' : '1px solid #d1d5db',
-                  borderRadius: '12px',
-                  background: '#fff',
-                  fontSize: '0.95rem',
-                  outline: 'none',
-                  transition: 'all 0.2s',
-                  cursor: 'pointer',
-                  boxSizing: 'border-box',
-                  appearance: 'none',
-                  backgroundImage: 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'20\' height=\'20\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'%236b7280\' stroke-width=\'2\' stroke-linecap=\'round\' stroke-linejoin=\'round\'%3E%3Cpolyline points=\'6 9 12 15 18 9\'%3E%3C/polyline%3E%3C/svg%3E")',
-                  backgroundRepeat: 'no-repeat',
-                  backgroundPosition: 'right 12px center',
-                  backgroundSize: '20px'
-                }}
-                onFocus={(e) => {
-                  if (!errors.accessLevel) {
-                    e.target.style.borderColor = '#6366f1';
-                    e.target.style.boxShadow = '0 0 0 3px rgba(99, 102, 241, 0.1)';
-                  }
-                }}
-                onBlur={(e) => {
-                  e.target.style.borderColor = errors.accessLevel ? '#ef4444' : '#d1d5db';
-                  e.target.style.boxShadow = 'none';
-                }}
-              >
-                <option value="">Select access level</option>
-                <option value="faculty">Faculty Member</option>
-                <option value="admin">Admin</option>
-              </select>
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              {['faculty', 'admin'].map((role) => (
+                <button
+                  key={role}
+                  type="button"
+                  onClick={() => setValue('role', role, { shouldValidate: true })}
+                  style={{
+                    flex: 1,
+                    padding: '0.625rem',
+                    borderRadius: '10px',
+                    border: '1.5px solid',
+                    borderColor: selectedRole === role ? 'var(--primary)' : 'var(--border)',
+                    background: selectedRole === role ? 'rgba(99,102,241,0.1)' : 'var(--bg-card)',
+                    color: selectedRole === role ? 'var(--primary)' : 'var(--text-sub)',
+                    fontSize: '0.85rem',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                    textTransform: 'capitalize'
+                  }}
+                >
+                  {role}
+                </button>
+              ))}
             </div>
-            {errors.accessLevel && (
-              <p style={{
-                color: '#ef4444',
-                fontSize: '0.75rem',
-                marginTop: '0.375rem',
-                marginLeft: '0.25rem'
-              }}>
-                {errors.accessLevel}
-              </p>
-            )}
-          </div>
+          </motion.div>
 
-          {/* Login Button */}
-          <button
+          {/* Submit Button */}
+          <motion.button
+            variants={itemVariants}
+            whileHover={{ scale: 1.01 }}
+            whileTap={{ scale: 0.98 }}
             type="submit"
             disabled={isLoading}
             style={{
               width: '100%',
               padding: '0.875rem',
-              background: isLoading ? '#9ca3af' : 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
+              marginTop: '0.5rem',
+              background: '#6366f1',
               color: '#fff',
-              fontSize: '1rem',
-              fontWeight: '600',
+              fontSize: '0.95rem',
+              fontWeight: 600,
               border: 'none',
               borderRadius: '12px',
               cursor: isLoading ? 'not-allowed' : 'pointer',
-              transition: 'all 0.2s',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               gap: '0.5rem',
-              boxShadow: '0 4px 6px -1px rgba(99, 102, 241, 0.3)'
-            }}
-            onMouseEnter={(e) => {
-              if (!isLoading) {
-                e.target.style.transform = 'translateY(-2px)';
-                e.target.style.boxShadow = '0 10px 15px -3px rgba(99, 102, 241, 0.4)';
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (!isLoading) {
-                e.target.style.transform = 'translateY(0)';
-                e.target.style.boxShadow = '0 4px 6px -1px rgba(99, 102, 241, 0.3)';
-              }
+              transition: 'opacity 0.2s'
             }}
           >
-            {isLoading ? (
-              <>
-                <svg
-                  style={{
-                    animation: 'spin 1s linear infinite',
-                    width: '20px',
-                    height: '20px'
-                  }}
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                >
-                  <circle
-                    style={{ opacity: 0.25 }}
-                    cx="12"
-                    cy="12"
-                    r="10"
-                    stroke="currentColor"
-                    strokeWidth="4"
-                  />
-                  <path
-                    style={{ opacity: 0.75 }}
-                    fill="currentColor"
-                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                  />
-                </svg>
-                Loading...
-              </>
-            ) : (
-              'Login'
-            )}
-          </button>
+            {isLoading ? <Loader2 className="animate-spin" size={20} /> : 'Login'}
+          </motion.button>
         </form>
-      </div>
+      </motion.div>
 
-      {/* Add keyframe animation for spinner */}
       <style>{`
         @keyframes spin {
-          from {
-            transform: rotate(0deg);
-          }
-          to {
-            transform: rotate(360deg);
-          }
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+        .animate-spin {
+          animation: spin 1s linear infinite;
         }
       `}</style>
     </div>

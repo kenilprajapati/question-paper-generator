@@ -1,0 +1,26 @@
+#!/usr/bin/env node
+
+console.log('\n---');
+console.log('Git Hook: post-merge');
+console.log('Updating local database...');
+console.log('--------------------------');
+
+const { spawnSync } = require('child_process');
+const path = require('path');
+
+console.log('Running migrations...');
+const migrationResult = spawnSync('node', [path.join(__dirname, '../backend/scripts/run-migrations.js')], { stdio: 'inherit' });
+
+if (migrationResult.status !== 0) {
+  console.error('\nMigrations failed after merge.');
+}
+
+console.log('\nRunning seed scripts...');
+const seedResult = spawnSync('node', [path.join(__dirname, '../backend/scripts/seed-db.js')], { stdio: 'inherit' });
+
+if (seedResult.status !== 0) {
+  console.error('\nSeeding failed after merge.');
+}
+
+console.log('Database is now synchronized with repository\n');
+process.exit(0);

@@ -1,16 +1,27 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
+import axiosInstance from '../api/axiosInstance';
+import SkeletonLoader from '../components/ui/Skeleton';
 import AIChatbot from '../components/AIChatbot';
 
 function Dashboard() {
   const navigate = useNavigate();
 
-  const stats = [
+  const { data: statsData, isLoading } = useQuery({
+    queryKey: ['dashboardStats'],
+    queryFn: async () => {
+      const response = await axiosInstance.get('/dashboard/stats');
+      return response.data.data;
+    }
+  });
+
+  const statsCards = [
     {
       label: 'QUESTIONS BANK',
-      value: '4,281',
-      subtitle: '+12% this month',
-      trend: 'up',
+      value: statsData?.totalQuestions || 0,
+      subtitle: 'Total questions in repository',
+      trend: 'neutral',
       icon: (
         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/>
@@ -20,25 +31,24 @@ function Dashboard() {
       color: '#6366f1'
     },
     {
-      label: 'PAPERS CREATED',
-      value: '156',
-      subtitle: 'Total verified sets',
+      label: 'TOTAL FACULTY',
+      value: statsData?.totalUsers || 0,
+      subtitle: 'Verified user accounts',
       trend: 'neutral',
       icon: (
         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-          <polyline points="14 2 14 8 20 8"/>
-          <line x1="16" y1="13" x2="8" y2="13"/>
-          <line x1="16" y1="17" x2="8" y2="17"/>
-          <polyline points="10 9 9 9 8 9"/>
+          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+          <circle cx="9" cy="7" r="4"/>
+          <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+          <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
         </svg>
       ),
       color: '#10b981'
     },
     {
       label: 'ACTIVE SUBJECTS',
-      value: '24',
-      subtitle: 'Across 4 branches',
+      value: statsData?.totalSubjects || 0,
+      subtitle: 'Mapped modules',
       trend: 'neutral',
       icon: (
         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -50,74 +60,54 @@ function Dashboard() {
     },
   ];
 
-  const chartData = [
-    { label: 'MCQ', value: 120, color: '#6366f1', percentage: '45%' },
-    { label: 'Descriptive', value: 80, color: '#8b5cf6', percentage: '30%' },
-    { label: 'True/False', value: 40, color: '#ec4899', percentage: '25%' }
-  ];
+  // Map difficulty stats to chart for now
+  const chartData = statsData?.questionsByDifficulty?.map(item => ({
+    label: item._id,
+    value: item.count,
+    color: item._id === 'Easy' ? '#10b981' : item._id === 'Medium' ? '#f59e0b' : '#ef4444',
+    percentage: Math.round((item.count / (statsData.totalQuestions || 1)) * 100) + '%'
+  })) || [];
 
   const activities = [
     {
-      user: 'John Smith',
-      initials: 'JS',
-      action: 'generated Mid-Term',
-      details: 'Subject: OS Fundamentals',
-      time: '2m ago',
-      color: '#6366f1'
-    },
-    {
-      user: 'Anna Miller',
-      initials: 'AM',
-      action: 'approved 15 new questions',
-      details: 'Applied to Database Systems',
-      time: '1h ago',
+      user: 'System Admin',
+      initials: 'SA',
+      action: 'connected to real-time engine',
+      details: 'Analytics dashboard is now live',
+      time: 'Just now',
       color: '#10b981'
-    },
-    {
-      user: 'Robert Chen',
-      initials: 'RC',
-      action: 'created new subject',
-      details: 'Machine Learning Basics',
-      time: '3h ago',
-      color: '#f59e0b'
-    },
-    {
-      user: 'Sarah Johnson',
-      initials: 'SJ',
-      action: 'updated question bank',
-      details: 'Added 25 questions to Networks',
-      time: '5h ago',
-      color: '#8b5cf6'
     }
   ];
 
   return (
     <div style={{
-      padding: '2rem',
+      padding: window.innerWidth < 768 ? '1rem' : '2rem',
       maxWidth: '100%',
       width: '100%',
       minHeight: '100vh',
-      background: '#f8fafc'
+      background: 'var(--bg-body)'
     }}>
       {/* Header Section */}
       <div style={{
         display: 'flex',
+        flexDirection: window.innerWidth < 768 ? 'column' : 'row',
         justifyContent: 'space-between',
-        alignItems: 'flex-start',
-        marginBottom: '2rem'
+        alignItems: window.innerWidth < 768 ? 'stretch' : 'flex-start',
+        marginBottom: '2rem',
+        gap: '1.5rem'
       }}>
         <div>
           <h1 style={{
-            fontSize: '2rem',
+            fontSize: window.innerWidth < 768 ? '1.5rem' : '2rem',
             fontWeight: '700',
-            color: '#0f172a',
+            color: 'var(--text-main)',
             marginBottom: '0.5rem'
           }}>
             Intelligence Center
           </h1>
           <p style={{
             fontSize: '1rem',
-            color: '#64748b'
+            color: 'var(--text-sub)'
           }}>
             Overview of paper generation metrics
           </p>
@@ -129,6 +119,7 @@ function Dashboard() {
           style={{
             display: 'flex',
             alignItems: 'center',
+            justifyContent: 'center',
             gap: '0.75rem',
             padding: '1rem 2rem',
             background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
@@ -139,15 +130,16 @@ function Dashboard() {
             borderRadius: '12px',
             cursor: 'pointer',
             transition: 'all 0.3s ease',
-            boxShadow: '0 4px 12px rgba(99, 102, 241, 0.3)'
+            boxShadow: '0 4px 12px rgba(99, 102, 241, 0.3)',
+            width: window.innerWidth < 768 ? '100%' : 'auto'
           }}
           onMouseEnter={(e) => {
-            e.target.style.transform = 'translateY(-2px)';
-            e.target.style.boxShadow = '0 8px 20px rgba(99, 102, 241, 0.4)';
+            e.currentTarget.style.transform = 'translateY(-2px)';
+            e.currentTarget.style.boxShadow = '0 8px 20px rgba(99, 102, 241, 0.4)';
           }}
           onMouseLeave={(e) => {
-            e.target.style.transform = 'translateY(0)';
-            e.target.style.boxShadow = '0 4px 12px rgba(99, 102, 241, 0.3)';
+            e.currentTarget.style.transform = 'translateY(0)';
+            e.currentTarget.style.boxShadow = '0 4px 12px rgba(99, 102, 241, 0.3)';
           }}
         >
           <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -161,19 +153,21 @@ function Dashboard() {
       {/* Stats Cards */}
       <div style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
         gap: '1.5rem',
         marginBottom: '2rem'
       }}>
-        {stats.map((stat, index) => (
+        {isLoading ? (
+          [...Array(3)].map((_, i) => <SkeletonLoader key={i} height={180} />)
+        ) : statsCards.map((stat, index) => (
           <div
             key={index}
             style={{
-              background: '#fff',
+              background: 'var(--bg-card)',
               padding: '1.75rem',
               borderRadius: '16px',
-              boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)',
-              border: '1px solid #e2e8f0',
+              boxShadow: 'var(--shadow-sm)',
+              border: '1px solid var(--border)',
               transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
               cursor: 'pointer',
               position: 'relative',
@@ -188,8 +182,8 @@ function Dashboard() {
             }}
             onMouseLeave={(e) => {
               e.currentTarget.style.transform = 'translateY(0)';
-              e.currentTarget.style.boxShadow = '0 1px 3px rgba(0, 0, 0, 0.05)';
-              e.currentTarget.style.borderColor = '#e2e8f0';
+              e.currentTarget.style.boxShadow = 'var(--shadow-sm)';
+              e.currentTarget.style.borderColor = 'var(--border)';
               const overlay = e.currentTarget.querySelector('.card-overlay');
               if (overlay) overlay.style.opacity = '0';
             }}
@@ -221,7 +215,7 @@ function Dashboard() {
                 <p style={{
                   fontSize: '0.75rem',
                   fontWeight: '700',
-                  color: '#64748b',
+                  color: 'var(--text-sub)',
                   letterSpacing: '0.05em'
                 }}>
                   {stat.label}
@@ -241,9 +235,9 @@ function Dashboard() {
                 </div>
               </div>
               <h2 style={{
-                fontSize: '2.5rem',
+                fontSize: window.innerWidth < 768 ? '2rem' : '2.5rem',
                 fontWeight: '700',
-                color: '#0f172a',
+                color: 'var(--text-main)',
                 marginBottom: '0.5rem',
                 lineHeight: '1'
               }}>
@@ -272,21 +266,21 @@ function Dashboard() {
       {/* Charts and Activity Section */}
       <div style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(450px, 1fr))',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
         gap: '1.5rem'
       }}>
         {/* Distribution Chart */}
         <div style={{
-          background: '#fff',
+          background: 'var(--bg-card)',
           padding: '2rem',
           borderRadius: '16px',
-          boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)',
-          border: '1px solid #e2e8f0'
+          boxShadow: 'var(--shadow-sm)',
+          border: '1px solid var(--border)'
         }}>
           <h3 style={{
             fontSize: '1.25rem',
             fontWeight: '700',
-            color: '#0f172a',
+            color: 'var(--text-main)',
             marginBottom: '1.5rem'
           }}>
             Distribution by Type
@@ -320,7 +314,7 @@ function Dashboard() {
                   <span style={{
                     fontSize: '0.875rem',
                     fontWeight: '600',
-                    color: '#0f172a'
+                    color: 'var(--text-main)'
                   }}>
                     {item.label}
                   </span>
@@ -330,10 +324,11 @@ function Dashboard() {
                 <div style={{
                   flex: 1,
                   height: '40px',
-                  background: '#f1f5f9',
+                  background: 'var(--bg-body)',
                   borderRadius: '8px',
                   position: 'relative',
-                  overflow: 'hidden'
+                  overflow: 'hidden',
+                  border: '1px solid var(--border)'
                 }}>
                   {/* Animated Bar */}
                   <div
@@ -389,7 +384,7 @@ function Dashboard() {
           <div style={{
             marginTop: '2rem',
             paddingTop: '1.5rem',
-            borderTop: '1px solid #e2e8f0',
+            borderTop: '1px solid var(--border)',
             display: 'flex',
             justifyContent: 'space-around',
             gap: '1rem'
@@ -397,7 +392,7 @@ function Dashboard() {
             <div style={{ textAlign: 'center' }}>
               <p style={{
                 fontSize: '0.75rem',
-                color: '#64748b',
+                color: 'var(--text-sub)',
                 marginBottom: '0.25rem',
                 fontWeight: '600'
               }}>
@@ -406,19 +401,19 @@ function Dashboard() {
               <p style={{
                 fontSize: '1.5rem',
                 fontWeight: '700',
-                color: '#0f172a'
+                color: 'var(--text-main)'
               }}>
-                240
+                {statsData?.totalQuestions || 0}
               </p>
             </div>
             <div style={{
               width: '1px',
-              background: '#e2e8f0'
+              background: 'var(--border)'
             }} />
             <div style={{ textAlign: 'center' }}>
               <p style={{
                 fontSize: '0.75rem',
-                color: '#64748b',
+                color: 'var(--text-sub)',
                 marginBottom: '0.25rem',
                 fontWeight: '600'
               }}>
@@ -429,7 +424,7 @@ function Dashboard() {
                 fontWeight: '700',
                 color: '#6366f1'
               }}>
-                MCQ
+                {statsData?.questionsByDifficulty?.[0]?._id || 'N/A'}
               </p>
             </div>
           </div>
@@ -437,16 +432,16 @@ function Dashboard() {
 
         {/* Activity Stream */}
         <div style={{
-          background: '#fff',
+          background: 'var(--bg-card)',
           padding: '2rem',
           borderRadius: '16px',
-          boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)',
-          border: '1px solid #e2e8f0'
+          boxShadow: 'var(--shadow-sm)',
+          border: '1px solid var(--border)'
         }}>
           <h3 style={{
             fontSize: '1.25rem',
             fontWeight: '700',
-            color: '#0f172a',
+            color: 'var(--text-main)',
             marginBottom: '1.5rem'
           }}>
             Activity Stream
@@ -483,21 +478,21 @@ function Dashboard() {
                     <p style={{
                       fontSize: '0.95rem',
                       fontWeight: '600',
-                      color: '#0f172a',
+                      color: 'var(--text-main)',
                       marginBottom: '0.25rem'
                     }}>
                       <span style={{ fontWeight: '700' }}>{activity.user}</span> {activity.action}
                     </p>
                     <p style={{
                       fontSize: '0.875rem',
-                      color: '#64748b',
+                      color: 'var(--text-sub)',
                       marginBottom: '0.25rem'
                     }}>
                       {activity.details}
                     </p>
                     <p style={{
                       fontSize: '0.75rem',
-                      color: '#94a3b8'
+                      color: 'var(--text-muted)'
                     }}>
                       {activity.time}
                     </p>
@@ -506,7 +501,7 @@ function Dashboard() {
                 {index < activities.length - 1 && (
                   <div style={{
                     height: '1px',
-                    background: '#e2e8f0',
+                    background: 'var(--border)',
                     margin: '0.5rem 0'
                   }} />
                 )}

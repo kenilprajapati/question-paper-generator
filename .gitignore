@@ -1,0 +1,5 @@
+node_modules/
+fix-npm.bat
+install-pdf-lib.bat
+
+# .env

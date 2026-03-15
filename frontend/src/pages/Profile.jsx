@@ -1,26 +1,39 @@
-import React, { useState, useRef } from 'react';
-import { User, Mail, Building2, Shield, Camera, Save, Edit2 } from 'lucide-react';
-
-const initialData = {
-  fullName: 'Dr. John Miller',
-  email: 'john.miller@university.edu',
-  department: 'Computer Science',
-  role: 'Faculty Member',
-};
+import React, { useState, useEffect, useRef } from 'react';
+import { useSelector, useDispatch } from 'react-redux';
+import { useMutation } from '@tanstack/react-query';
+import { toast } from 'react-hot-toast';
+import { Camera, Save, Edit2, User, Mail, Building2, Shield } from 'lucide-react';
+import axiosInstance from '../api/axiosInstance';
+import { setCredentials } from '../store/slices/authSlice';
 
 export default function Profile() {
+  const dispatch = useDispatch();
+  const { user, token } = useSelector((state) => state.auth);
   const [editing, setEditing] = useState(false);
-  const [form, setForm] = useState(initialData);
-  const [saved, setSaved] = useState(false);
+  const [form, setForm] = useState({
+    name: user?.name || '',
+    email: user?.email || '',
+    department: 'Computer Science',
+    role: user?.role || 'Faculty Member',
+  });
+  
   const [avatar, setAvatar] = useState(null);
   const fileRef = useRef();
 
-  const initials = form.fullName.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+  const mutation = useMutation({
+    mutationFn: (data) => axiosInstance.patch('/auth/updateMe', data),
+    onSuccess: (res) => {
+      dispatch(setCredentials({ user: res.data.data.user, token }));
+      setEditing(false);
+      toast.success('Profile updated successfully');
+    },
+    onError: (err) => toast.error(err.response?.data?.message || 'Update failed')
+  });
+
+  const initials = form.name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
 
   const handleSave = () => {
-    setEditing(false);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2500);
+    mutation.mutate({ name: form.name, email: form.email });
   };
 
   const handleAvatarChange = (e) => {
@@ -50,7 +63,7 @@ export default function Profile() {
             style={{
               position: 'absolute', bottom: 0, right: 0,
               width: 28, height: 28, borderRadius: '50%',
-              background: 'var(--primary)', border: '2px solid #fff',
+              background: 'var(--primary)', border: '2px solid var(--bg-card)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               cursor: 'pointer', color: '#fff'
             }}
@@ -61,7 +74,7 @@ export default function Profile() {
         </div>
 
         <div style={{ flex: 1, minWidth: 200 }}>
-          <div style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-main)' }}>{form.fullName}</div>
+          <div style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-main)' }}>{form.name}</div>
           <div style={{ color: 'var(--primary)', fontWeight: 600, fontSize: '0.875rem', marginTop: 2 }}>{form.role}</div>
           <div style={{ color: 'var(--text-sub)', fontSize: '0.85rem', marginTop: 6, display: 'flex', flexDirection: 'column', gap: 3 }}>
             <span>Department: {form.department}</span>
@@ -78,18 +91,13 @@ export default function Profile() {
         </button>
       </div>
 
-      {saved && (
-        <div style={{ background: '#d1fae5', color: '#065f46', borderRadius: 10, padding: '0.75rem 1rem', marginBottom: '1.5rem', fontSize: '0.875rem', fontWeight: 500 }}>
-          ✓ Profile updated successfully
-        </div>
-      )}
 
       {/* Editable Fields */}
       <div className="card" style={{ borderRadius: 16, padding: '2rem' }}>
         <h3 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '1.5rem', color: 'var(--text-main)' }}>Profile Information</h3>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.25rem' }}>
           {[
-            { label: 'Full Name', key: 'fullName', icon: <User size={16} />, editable: true },
+            { label: 'Full Name', key: 'name', icon: <User size={16} />, editable: true },
             { label: 'Email Address', key: 'email', icon: <Mail size={16} />, editable: true },
             { label: 'Department', key: 'department', icon: <Building2 size={16} />, editable: false },
             { label: 'Role', key: 'role', icon: <Shield size={16} />, editable: false },
@@ -105,7 +113,7 @@ export default function Profile() {
                 onChange={e => setForm(p => ({ ...p, [key]: e.target.value }))}
                 style={{
                   borderRadius: 10, fontSize: '0.9rem', padding: '0.7rem 0.875rem',
-                  background: (!editing || !editable) ? '#f8fafc' : '#fff',
+                  background: (!editing || !editable) ? 'var(--bg-body)' : 'var(--bg-input)',
                   color: 'var(--text-main)', border: '1px solid var(--border)',
                   outline: 'none', transition: 'border 0.2s',
                   cursor: (!editing || !editable) ? 'default' : 'text'
@@ -119,8 +127,10 @@ export default function Profile() {
 
         {editing && (
           <div style={{ marginTop: '1.5rem', display: 'flex', gap: '0.75rem' }}>
-            <button className="btn btn-primary" onClick={handleSave}><Save size={16} /> Save Changes</button>
-            <button className="btn btn-sub" onClick={() => { setEditing(false); setForm(initialData); }}>Cancel</button>
+            <button className="btn btn-primary" onClick={handleSave} disabled={mutation.isPending}>
+              {mutation.isPending ? 'Saving...' : <><Save size={16} /> Save Changes</>}
+            </button>
+            <button className="btn btn-sub" onClick={() => { setEditing(false); setForm({ name: user.name, email: user.email, department: 'CS', role: user.role }); }}>Cancel</button>
           </div>
         )}
       </div>

@@ -1,5 +1,9 @@
 import React, { useState } from 'react';
+import { useMutation } from '@tanstack/react-query';
+import { toast } from 'react-hot-toast';
+import axiosInstance from '../api/axiosInstance';
 import { Lock, Bell, Palette, ShieldCheck, Eye, EyeOff, Sun, Moon, Monitor } from 'lucide-react';
+import { useTheme } from '../context/ThemeContext';
 
 function Section({ icon, title, children }) {
   return (
@@ -30,7 +34,7 @@ function Toggle({ label, sub, checked, onChange }) {
       >
         <span style={{
           position: 'absolute', top: 3, left: checked ? 23 : 3,
-          width: 18, height: 18, borderRadius: '50%', background: '#fff',
+          width: 18, height: 18, borderRadius: '50%', background: 'var(--bg-card)',
           transition: 'left 0.25s', boxShadow: '0 1px 4px rgba(0,0,0,0.2)'
         }} />
       </button>
@@ -39,27 +43,37 @@ function Toggle({ label, sub, checked, onChange }) {
 }
 
 export default function Settings() {
+  const { theme: appearance, setTheme: setAppearance } = useTheme();
   const [passwords, setPasswords] = useState({ current: '', newPass: '', confirm: '' });
   const [showPw, setShowPw] = useState({ current: false, newPass: false, confirm: false });
-  const [pwMsg, setPwMsg] = useState('');
   const [notifs, setNotifs] = useState({ email: true, paper: true, faculty: false });
-  const [appearance, setAppearance] = useState('light');
   const [twoFA, setTwoFA] = useState(false);
   const [loginHistory, setLoginHistory] = useState(false);
 
+  const mutation = useMutation({
+    mutationFn: (data) => axiosInstance.patch('/auth/updateMyPassword', data),
+    onSuccess: (res) => {
+      toast.success('Password updated successfully');
+      setPasswords({ current: '', newPass: '', confirm: '' });
+    },
+    onError: (err) => toast.error(err.response?.data?.message || 'Update failed')
+  });
+
   const handlePasswordUpdate = () => {
     if (!passwords.current || !passwords.newPass || !passwords.confirm) {
-      setPwMsg({ type: 'error', text: 'All fields are required.' }); return;
+      return toast.error('All fields are required.');
     }
     if (passwords.newPass !== passwords.confirm) {
-      setPwMsg({ type: 'error', text: 'New passwords do not match.' }); return;
+      return toast.error('New passwords do not match.');
     }
     if (passwords.newPass.length < 8) {
-      setPwMsg({ type: 'error', text: 'Password must be at least 8 characters.' }); return;
+      return toast.error('Password must be at least 8 characters.');
     }
-    setPwMsg({ type: 'success', text: 'Password updated successfully!' });
-    setPasswords({ current: '', newPass: '', confirm: '' });
-    setTimeout(() => setPwMsg(''), 3000);
+    mutation.mutate({
+      passwordCurrent: passwords.current,
+      password: passwords.newPass,
+      passwordConfirm: passwords.confirm
+    });
   };
 
   const PwField = ({ label, field }) => (
@@ -101,14 +115,9 @@ export default function Settings() {
         <PwField label="Current Password" field="current" />
         <PwField label="New Password" field="newPass" />
         <PwField label="Confirm New Password" field="confirm" />
-        {pwMsg && (
-          <div style={{
-            padding: '0.65rem 0.875rem', borderRadius: 8, fontSize: '0.82rem', fontWeight: 500, marginBottom: '1rem',
-            background: pwMsg.type === 'success' ? '#d1fae5' : '#fee2e2',
-            color: pwMsg.type === 'success' ? '#065f46' : '#991b1b'
-          }}>{pwMsg.text}</div>
-        )}
-        <button className="btn btn-primary" onClick={handlePasswordUpdate}><Lock size={15} /> Update Password</button>
+        <button className="btn btn-primary" onClick={handlePasswordUpdate} disabled={mutation.isPending}>
+          {mutation.isPending ? 'Updating...' : <><Lock size={15} /> Update Password</>}
+        </button>
       </Section>
 
       {/* Notifications */}
@@ -137,7 +146,7 @@ export default function Settings() {
                 borderRadius: 14,
                 cursor: 'pointer',
                 border: appearance === t.key ? '2px solid var(--primary)' : '2px solid var(--border)',
-                background: appearance === t.key ? 'rgba(99,102,241,0.07)' : '#f8fafc',
+                background: appearance === t.key ? 'rgba(99,102,241,0.07)' : 'var(--bg-body)',
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
@@ -154,7 +163,7 @@ export default function Settings() {
             >
               <div style={{
                 width: 42, height: 42, borderRadius: 12,
-                background: appearance === t.key ? 'rgba(99,102,241,0.12)' : '#e2e8f0',
+                background: appearance === t.key ? 'rgba(99,102,241,0.12)' : 'var(--border)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 transition: 'background 0.2s'
               }}>
@@ -164,7 +173,7 @@ export default function Settings() {
               {appearance === t.key && (
                 <span style={{
                   fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.04em',
-                  background: 'var(--primary)', color: '#fff',
+                  background: 'var(--primary)', color: 'var(--text-on-primary)',
                   padding: '2px 10px', borderRadius: 20
                 }}>Active</span>
               )}

@@ -10,17 +10,36 @@ import Subjects from './pages/Subjects';
 import Profile from './pages/Profile';
 import Settings from './pages/Settings';
 
+import Protected from './components/common/Protected';
+import { Toaster } from 'react-hot-toast';
+
 function App() {
   return (
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<Login />} />
-        <Route path="/app" element={<Layout />}>
+        <Route path="/login" element={<Login />} />
+        
+        <Route 
+          path="/app" 
+          element={
+            <Protected>
+              <Layout />
+            </Protected>
+          }
+        >
           <Route index element={<Navigate to="dashboard" replace />} />
           <Route path="dashboard" element={<Dashboard />} />
           <Route path="bank" element={<QuestionBank />} />
           <Route path="generator" element={<Generator />} />
-          <Route path="admin" element={<Admin />} />
+          <Route 
+            path="admin" 
+            element={
+              <Protected allowedRoles={['admin']}>
+                <Admin />
+              </Protected>
+            } 
+          />
           <Route path="subjects" element={<Subjects />} />
           <Route path="profile" element={<Profile />} />
           <Route path="settings" element={<Settings />} />
